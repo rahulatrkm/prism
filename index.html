@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<title>Prism — bend the light</title>
+<meta name="description" content="Prism is a calm, tactile light-puzzle. Rotate mirrors to bend a beam of light and ignite every crystal. Hand-crafted levels, silky animations, one-thumb play." />
+<meta name="theme-color" content="#05060d" />
+<meta property="og:title" content="Prism — bend the light" />
+<meta property="og:description" content="Rotate mirrors, split the beam, ignite every crystal. A calm, gorgeous light-puzzle." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2305060d'/%3E%3Cpath d='M50 18 L82 74 H18 Z' fill='none' stroke='%2359f0ff' stroke-width='6' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<style>
+  :root{
+    --bg:#05060d; --ink:#eaf6ff; --muted:#7f8bb0;
+    --beam:#59f0ff; --gem:#ff4d8d; --gem-lit:#8affc9; --mirror:#cfe6ff;
+    --panel:#0d1122; --line:#1b2340;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; height:100%; background:
+    radial-gradient(1100px 700px at 50% -15%, #10193a, var(--bg));
+    color:var(--ink); overflow:hidden; user-select:none; touch-action:none;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,system-ui,sans-serif}
+  .app{max-width:560px; margin:0 auto; height:100%; display:flex; flex-direction:column;
+    padding:14px calc(14px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left))}
+
+  header{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+  .brand{display:flex; align-items:center; gap:10px}
+  .brand .mark{width:30px; height:30px}
+  .brand h1{font-size:1.35rem; margin:0; font-weight:800; letter-spacing:.5px}
+  .brand h1 span{background:linear-gradient(90deg,var(--beam),#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .spacer{flex:1}
+  .chip{background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-size:.82rem; color:var(--muted)}
+  .chip b{color:var(--ink)}
+  .iconbtn{border:0;cursor:pointer;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    width:40px;height:40px;border-radius:12px;font-size:1.05rem;display:grid;place-items:center}
+  .iconbtn:active{transform:translateY(1px)}
+
+  .stage{position:relative; width:100%; aspect-ratio:1/1; margin-top:4px}
+  canvas{position:absolute; inset:0; width:100%; height:100%; border-radius:20px;
+    background:linear-gradient(160deg,#0a0f22,#070912); border:1px solid var(--line);
+    box-shadow:0 20px 60px rgba(0,0,0,.5), inset 0 0 60px rgba(89,240,255,.03)}
+
+  .bar{display:flex; align-items:center; gap:10px; margin-top:14px}
+  .bar .lvl{font-size:.9rem; color:var(--muted)}
+  .bar .lvl b{color:var(--ink)}
+  .btn{border:0;cursor:pointer;font-weight:700;color:#05060d;font-size:.95rem;padding:12px 18px;border-radius:14px;
+    background:linear-gradient(180deg,#7ff3ff,#38d6ff);box-shadow:0 5px 0 #1a7fa0}
+  .btn:active{transform:translateY(3px);box-shadow:0 2px 0 #1a7fa0}
+  .btn.ghost{background:var(--panel);border:1px solid var(--line);color:var(--ink);box-shadow:0 5px 0 #070a16}
+  .btn.ghost:active{box-shadow:0 2px 0 #070a16}
+
+  .hint{margin-top:12px;text-align:center;color:var(--muted);font-size:.82rem;line-height:1.5}
+  .hint b{color:var(--ink)}
+
+  .overlay{position:fixed;inset:0;background:rgba(4,6,14,.7);backdrop-filter:blur(8px);
+    display:none;align-items:center;justify-content:center;padding:22px;z-index:40}
+  .overlay.show{display:flex;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:28px 24px;max-width:400px;width:100%;
+    text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .card h2{margin:.1em 0 .3em;font-size:1.7rem}
+  .card p{color:var(--muted);line-height:1.55;margin:.4em 0 1.2em}
+  .card .big{font-size:3rem;margin:.1em 0}
+  .row{display:flex;gap:10px}
+  .row .btn{flex:1}
+  .lvlpick{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}
+  .lvlpick button{aspect-ratio:1;border-radius:12px;border:1px solid var(--line);background:#0a0f22;color:var(--ink);
+    font-weight:700;cursor:pointer;font-size:1rem}
+  .lvlpick button.done{background:linear-gradient(180deg,#123b34,#0c2a26);border-color:#1f5b4d;color:var(--gem-lit)}
+  .lvlpick button.locked{opacity:.35}
+  .lvlpick button.cur{outline:2px solid var(--beam)}
+
+  .lvlpick{max-height:46vh;overflow-y:auto;padding-right:4px;grid-template-columns:repeat(6,1fr)}
+  .card.howto{max-width:440px;text-align:left;max-height:92vh;overflow-y:auto}
+  .card.howto h2{text-align:center}
+  .card.howto .lead{text-align:center;color:var(--ink)}
+  .legend{display:grid;gap:8px;margin:12px 0 16px}
+  .legend .lg{display:flex;gap:12px;align-items:center;background:#0a0f22;border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+  .legend .ic{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:9px;font-size:1.1rem;font-weight:800}
+  .legend .ic.emit{background:#0e4b57;color:#bff6ff}
+  .legend .ic.mir{background:#1a2340;color:#cfe6ff}
+  .legend .ic.gem{background:#33203a;color:#ff9dc3}
+  .legend .ic.wall{background:#151b32;color:#5a6796}
+  .legend b{display:block;font-size:.95rem}
+  .legend small{color:var(--muted);font-size:.8rem;line-height:1.35;display:block}
+  .steps{margin:6px 0 12px;padding-left:20px;color:var(--ink);font-size:.92rem;line-height:1.7}
+  .steps b{color:var(--beam)}
+  .controls-note{font-size:.78rem;color:var(--muted);text-align:center;margin:4px 0 16px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);opacity:0;
+    background:var(--panel);border:1px solid var(--line);padding:10px 18px;border-radius:12px;font-size:.9rem;transition:.25s;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 100 100"><path d="M50 16 L84 76 H16 Z" fill="none" stroke="#59f0ff" stroke-width="7" stroke-linejoin="round"/></svg>
+      <h1><span>Prism</span></h1>
+    </div>
+    <div class="spacer"></div>
+    <div class="chip">Crystals <b id="litCount">0/0</b></div>
+    <button class="iconbtn" id="helpBtn" title="How to play">?</button>
+    <button class="iconbtn" id="levelsBtn" title="Levels">☰</button>
+  </header>
+
+  <div class="stage">
+    <canvas id="c"></canvas>
+  </div>
+
+  <div class="bar">
+    <div class="lvl">Level <b id="lvlNum">1</b> · Moves <b id="moves">0</b> <span id="parWrap">· Par <b id="par">–</b></span></div>
+    <div class="spacer"></div>
+    <button class="btn ghost" id="hintBtn">💡 Hint</button>
+    <button class="btn ghost" id="resetBtn">↺ Reset</button>
+  </div>
+
+  <div class="hint">Tap a <b>mirror</b> to rotate it. Bend the beam so it touches <b>every crystal</b>. Tap-hold a mirror to spin it the other way.</div>
+</div>
+
+<!-- Win -->
+<div class="overlay" id="winOverlay">
+  <div class="card">
+    <div class="big">✦</div>
+    <h2 id="winTitle">Level clear!</h2>
+    <p id="winMsg">Every crystal is glowing.</p>
+    <div class="row">
+      <button class="btn ghost" id="replayBtn">Replay</button>
+      <button class="btn" id="nextBtn">Next level →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Levels -->
+<div class="overlay" id="levelsOverlay">
+  <div class="card">
+    <h2>Levels</h2>
+    <p>Bend the light through all <span id="totalLvls">?</span> puzzles.</p>
+    <div class="lvlpick" id="lvlGrid"></div>
+    <button class="btn ghost" id="levelsClose">Close</button>
+  </div>
+</div>
+
+<!-- How to play / Intro -->
+<div class="overlay" id="introOverlay">
+  <div class="card howto">
+    <svg class="mark" viewBox="0 0 100 100" style="width:56px;height:56px"><path d="M50 16 L84 76 H16 Z" fill="none" stroke="#59f0ff" stroke-width="7" stroke-linejoin="round"/></svg>
+    <h2>How to play</h2>
+    <p class="lead">Guide the beam of light so it touches <b style="color:var(--gem)">every crystal</b>.</p>
+
+    <div class="legend">
+      <div class="lg"><span class="ic emit">◑</span><div><b>Emitter</b><small>Shoots a beam of light in one fixed direction.</small></div></div>
+      <div class="lg"><span class="ic mir">╱</span><div><b>Mirror</b><small><b>Tap</b> to rotate between ╱ and ╲ and bend the beam 90°.</small></div></div>
+      <div class="lg"><span class="ic gem">◆</span><div><b>Crystal</b><small>Lights up when the beam passes through it.</small></div></div>
+      <div class="lg"><span class="ic wall">▢</span><div><b>Wall</b><small>Blocks the beam. It stops here.</small></div></div>
+    </div>
+
+    <ol class="steps">
+      <li><b>Tap a mirror</b> to rotate it — the beam re-routes instantly.</li>
+      <li><b>Light every crystal</b> at once to clear the level.</li>
+      <li>Beat <b>Par</b> (the target move count) for a perfect run.</li>
+      <li>Stuck? Tap <b>💡 Hint</b> for the next move, or <b>↺ Reset</b>.</li>
+    </ol>
+    <p class="controls-note">🖱️ Desktop: click a mirror. 📱 Mobile: tap a mirror. No timer — take your time.</p>
+
+    <button class="btn" id="playBtn" style="width:100%">Start playing</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+  const cv = document.getElementById("c");
+  const ctx = cv.getContext("2d");
+  const $ = s => document.querySelector(s);
+  const LS_DONE = "prism.done";
+
+  // ---- Levels ----
+  // grid GxG. chars: '.' empty, '#' wall, '*' crystal, '>'/'<'/'^'/'v' emitter,
+  // '/' and '\\' rotatable mirrors. Beam reflects on mirrors, lights crystals it
+  // crosses, stops at walls/edges. 240 levels, all verified solvable & not pre-solved.
+  const LEVEL_BLOB = "1|......;...\\.*;>../..;......;......;......\n1|...v..;.\\./..;......;.*....;......;......\n1|....\\<;....*.;..../.;......;......;......\n1|......;*/....;>/....;......;......;......\n1|......;......;......;...//.;....*.;...^..\n2|v.....;/.../.;......;......;....*.;......\n1|.\\..*.;>/....;......;......;......;......\n2|\\....<;......;/....*;......;......;......\n2|....v.;....//;......;......;......;.....*\n1|......;......;......;....*.;..../\\;.....^\n2|....*v;..../\\;......;......;......;......\n1|...*v.;...//.;......;......;......;......\n1|v.....;/.\\...;..*...;......;......;......\n2|......;......;......;......;..\\/..;..*^..\n2|......;......;.*/...;../..<;......;......\n1|..*v..;..\\\\..;......;......;......;......\n1|......;......;......;..../*;......;..../<\n1|......;......;....\\<;....*.;..../.;......\n1|>/....;.\\*...;......;......;......;......\n2|.v..*.;./..\\.;......;......;......;......\n2|......;......;>./...;.*\\...;......;......\n1|....\\<;......;....\\*;......;......;......\n1|......;......;...*..;\\../..;......;^.....\n1|......;....\\.;....*.;..../<;......;......\n2|......;......;......;......;\\./...;*.^...\n1|......;......;..../*;..../<;......;......\n1|.\\...*;>/....;......;......;......;......\n1|...\\.<;.*./..;......;......;......;......\n1|......;......;>/....;......;.*....;.\\....\n1|....\\.;......;......;....*.;......;..../<\n1|......;\\.....;*.....;/*\\...;......;..^...\n1|......;......;......;......;/.*\\..;>.*\\..\n3|......;...\\.<;.*....;.*....;./.\\..;......\n2|......;......;.//...;.*/..<;......;.*....\n2|......;....*.;......;....*.;/...\\.;/....<\n1|......;>*/...;......;..*...;\\./...;......\n2|v*/...;/*/...;......;......;......;......\n2|......;......;......;......;./../.;./**^.\n1|......;..../\\;....*.;....*.;..../<;......\n1|......;...\\*<;...*..;...//.;......;......\n1|*.*/v.;...\\/.;......;......;......;......\n2|*.....;......;*.....;/\\....;>\\....;......\n1|......;>/....;//....;*.....;*.....;......\n1|....*.;......;......;>../*.;......;...\\/.\n2|..v...;/*\\...;/.*...;......;......;......\n1|......;......;......;......;\\.**/.;....\\<\n3|..*...;.\\..*<;./\\...;......;......;......\n2|......;*.....;*.....;\\/....;>\\....;......\n3|**./v.;.../\\.;......;......;......;......\n2|......;...\\/.;...*..;.../*.;......;....^.\n3|*.....;......;......;/./...;......;>*\\...\n1|...\\*<;...*..;..\\/..;......;......;......\n1|...*/<;...*..;...//.;......;......;......\n2|......;......;...//.;......;...**.;..../<\n1|..v...;.//...;.*....;./.*..;......;......\n2|...*..;..\\/..;>*\\...;......;......;......\n1|......;......;......;>\\....;.\\*/..;...*..\n1|......;......;......;.//...;.**...;.^/...\n2|..*...;......;......;../\\..;>.*\\..;......\n1|..\\*.<;..*...;.\\\\...;......;......;......\n2|.......;.......;.....\\<;....//.;..../**;.......;.......\n2|.......;.....*\\;.......;...../\\;.....*.;.......;...../<\n3|.*.....;.*.....;.......;.......;.\\/....;..//...;...^...\n2|.......;.......;...\\...;>\\.*...;./*\\...;.......;.......\n1|...*v..;..//...;../*/..;.......;.......;.......;.......\n2|>.\\....;..\\/...;.......;.../.**;.......;.......;.......\n2|.......;.......;.......;.......;*./....;..\\*\\..;..../.<\n1|.......;.......;.......;.......;\\.*..*.;\\\\.....;>/.....\n3|.......;.......;.......;...\\.*<;.......;..\\..*.;..//...\n3|......v;....\\.\\;.......;..../\\.;.....*.;.....*.;.......\n2|..../*<;..\\./..;../...*;.......;.......;.......;.......\n4|.......;*......;*......;.......;//.....;.//....;..^....\n4|.......;.......;.......;....\\*<;*..../.;..../\\.;.......\n3|.......;.......;.......;..\\..\\.;>.\\..*.;.......;...../*\n2|v.././.;/.*../.;.......;...*...;.......;.......;.......\n1|..../.<;**.\\...;...\\\\..;.......;.......;.......;.......\n1|.......;....../;......*;..../*/;..../.<;.......;.......\n1|.......;.......;...../*;..../*<;....//.;.......;.......\n1|.......;..*....;..\\\\...;./*\\...;.......;.......;.^.....\n3|.......;....\\.*;....*..;.......;..../\\.;.......;...../<\n1|.//....;.......;.......;..\\*../;.......;......*;......^\n1|../.*/.;.....*.;>./../.;.......;.......;.......;.......\n1|....\\*<;....*..;....\\\\.;.......;.......;...../.;.......\n2|./\\....;>\\.....;**\\....;.......;.......;.......;.......\n2|.......;.......;*.....\\;...../\\;.....*.;...../<;.......\n2|..../\\.;..**.\\.;>...\\..;.......;.......;.......;.......\n3|.......;...*/..;../.\\..;>*\\....;.......;.......;.......\n4|.......;.......;.......;>/.....;.//....;..*....;.*\\....\n3|.......;..*....;.......;.......;.......;..*\\.\\.;../\\.^.\n3|.......;.......;\\..\\...;/./....;..*....;.......;..*^...\n3|.......;*.**..\\;.......;....\\/.;.....\\\\;.......;....^..\n4|...*...;...*...;...*...;...//..;..../\\.;.......;...../<\n4|.....*.;.....*.;.....*.;.......;....\\\\.;..../\\.;...../<\n4|.......;.......;.......;.......;....\\/.;....*/\\;*..*\\.^\n4|...*...;\\.*\\...;*.\\...<;/./....;.......;.......;.......\n1|.......;.......;.......;.......;>*\\....;../*\\..;..\\*/..\n1|.......;....*..;.......;.......;....*/<;...\\/..;...\\*/.\n3|...\\.\\.;*.*..\\.;.......;...*...;.......;./.\\...;.^.....\n4|..*....;..*....;.......;.\\\\....;.//....;>*/....;.......\n4|.v.....;.......;\\\\.....;\\*/....;.......;../..**;.......\n2|/\\.../<;./..*\\.;*......;*......;.......;.......;.......\n2|....*..;.......;.......;....*..;....*..;././...;>\\.\\/..\n1|.......;.......;.//....;..*....;*./....;.\\.*\\..;....^..\n1|.......;.......;.......;.......;.......;../*/*\\;..^.\\*/\n1|..../.<;....\\./;......*;...././;....*..;.......;....*..\n2|..v....;..*....;..//...;..\\*...;...*...;..\\\\...;.......\n1|......v;.../..*;...*...;...\\/.*;....\\./;.......;.......\n2|....v..;.......;.......;....\\\\.;.....\\/;*..*.*\\;.......\n3|....*..;....*..;.......;.......;>./.*..;..\\../.;....//.\n1|.......;.......;.......;.......;.//..*/;..*...*;.\\\\...^\n1|..v/.*.;.\\./...;..*....;.*.....;.\\/....;.......;.......\n1|..../\\.;.*../..;.....*.;.....*.;.....\\/;.......;......^\n2|.../\\.v;...**..;...\\/.\\;.......;.......;.......;.......\n1|*......;*......;*......;\\\\.....;>.\\....;.\\\\....;.......\n2|.......;.......;>/.*...;.*.....;.\\\\....;..*....;..\\\\...\n2|.......;.......;.......;...\\/..;...\\.\\.;.*.**/.;....^..\n2|.......;.......;\\..*\\..;\\\\.....;.*../.<;.*.....;.......\n1|.......;.......;.../\\/<;...\\*\\.;.......;....*..;....*..\n2|.......;.......;.......;....*..;>\\\\*/..;..*....;.\\\\....\n2|.v.....;.\\\\....;../\\...;***\\...;.......;.......;.......\n4|...v....;........;..\\\\....;\\*\\.....;\\*..*...;........;........;........\n1|........;........;........;........;........;../**\\..;../\\*/..;...^....\n1|........;........;./.\\....;.....\\.*;.\\.../..;...*....;...*....;...^....\n2|........;........;........;........;........;........;...//.*\\;...^/**/\n4|........;........;........;........;........;........;/*/\\.**.;^./\\....\n3|........;...../\\.;...../.<;.....\\\\.;.....*..;.....*..;.....*..;........\n1|........;.....\\**;........;.....*..;....//..;....\\\\..;........;.....^..\n3|.....*..;........;....\\\\..;>\\..*...;./.*/...;........;........;........\n3|........;......\\*;......*.;.....\\\\.;.....\\\\.;......*.;........;......^.\n2|>\\......;.\\*/....;........;...\\./..;........;........;.....*..;.....*..\n3|.v......;........;........;.*......;\\\\......;/\\......;.*......;.\\..*...\n4|........;........;........;.....\\.<;.....*..;...../*/;......*.;......//\n2|...*....;...*....;...*....;........;........;........;../.\\...;..///..<\n1|........;........;........;........;........;./\\/*..*;.\\*\\....;..^.....\n2|/..**...;........;*.......;........;........;//......;.\\\\.....;..^.....\n4|\\/......;/.\\.....;>\\*.....;..*.....;........;..*.....;........;........\n2|........;........;........;........;..../.*.;...\\/...;...\\**/.;......^.\n1|........;/\\......;........;./.*/...;\\**....<;........;........;........\n4|.../*/v.;...../\\.;...*....;*..\\....;........;........;........;........\n3|........;........;........;..\\.*.*\\;....../\\;....../<;........;..*.....\n2|.v/*\\...;../.....;....*...;./.*\\...;........;........;........;........\n2|>**\\....;.*\\/....;.\\\\.....;........;........;........;........;........\n1|........;........;.....*..;.....*..;>.\\.\\/..;..\\*/...;........;........\n3|........;........;......\\<;......*.;......//;.../.**/;........;........\n1|...v....;...\\\\...;........;....*...;...\\/...;**./....;........;........\n1|......\\\\;......\\\\;........;......*.;>...**\\.;........;........;........\n2|v.......;\\/......;\\/......;*.......;........;........;\\..*.*..;........\n2|...../.<;.....*.*;...../\\*;......//;........;........;........;........\n3|........;........;........;........;........;........;>*//*/..;..\\\\.*..\n1|........;........;....\\.*<;....*...;....*...;..../\\..;./.../..;........\n1|........;........;>/......;.*......;.*......;.*......;\\*\\.....;/\\\\.....\n5|.v...\\/.;........;.*......;././..*.;...\\.\\*.;......*.;........;........\n5|........;........;........;.**/....;........;........;..\\\\../<;../.**\\.\n1|........;........;........;/.*..*..;\\*./....;....../<;...\\.*/.;........\n3|v.*.....;*.*.....;/\\......;.\\*\\....;........;../\\....;........;........\n2|........;..../**.;....*...;....\\/..;.....\\/.;......*.;......\\<;........\n5|........;........;....\\/..;...\\\\\\**;.../**.<;........;........;........\n3|........;........;..\\**.\\.;..*...\\<;.\\/.....;*\\......;........;........\n3|....v...;../*\\...;.\\/.....;.*......;.*......;/\\......;........;*.......\n3|........;.....\\.*;../**\\..;........;..*.....;.\\/.....;........;>/......\n3|......v.;......*.;....../\\;......//;......//;.......*;.......*;.......*\n5|..*.....;..*.\\./.;../.../.;....*...;........;....*...;....//..;.....^..\n4|........;........;........;...../.<;........;*.*/....;.../.*./;...../*/\n2|........;..//....;........;.*/\\*/..;.....*..;.....\\*<;........;........\n3|........;........;..*.....;........;........;\\..*\\...;*\\.*/...;^\\\\.....\n1|.v......;.\\\\//...;..\\./...;...*....;...*....;...*....;...*....;........\n1|........;........;........;........;......\\<;./....*.;../***/.;./\\.....\n2|........;.\\*..*\\.;>\\./.*.*;........;...\\../.;........;........;........\n2|.v......;././....;...*....;.......*;...*....;...*/../;...\\/...;........\n3|..v.....;..\\.*../;.\\...../;.*......;./.\\....;...*....;...*....;........\n1|..\\*\\...;...//...;**./....;..*.....;>./.....;........;........;........\n4|*.......;*.......;*.......;\\./.....;.\\\\.....;.*......;./\\.....;..^.....\n2|.....//.;....//*.;......*.;.*..\\...;......*.;......\\<;........;........\n3|........;........;./*/....;.\\//..**;>*/.....;........;........;........\n4|v.......;*.......;*.......;.\\\\.....;/.\\.....;./\\.....;..*.....;..*.....\n3|.v.....*;.......*;./*./...;....\\*\\.;......\\\\;........;........;........\n2|........;.\\.\\....;.*......;.*../*.*;>\\.\\/...;........;........;........\n3|v\\\\.....;\\\\**....;..**....;..//....;........;........;........;........\n2|........;........;..\\..../;../**/..;...../*\\;........;........;.......^\n4|........;>\\......;.\\/.....;\\.\\.....;........;*.......;........;/***....\n4|.v.......;././.....;.../*./..;.....//..;.........;.....*...;*..*./...;.........;.........\n4|........v;.........;\\**\\.....;/*..\\.../;....*....;...\\\\....;.........;.........;.........\n1|.........;.........;.........;.........;.........;/\\.......;**.......;\\*../\\...;.\\*.\\^...\n3|.........;.........;.*\\......;..\\/.....;.........;/..\\.....;*........;\\..**/...;.....^...\n4|.........;.........;.../**.*.;.........;...*.....;...//....;..\\./....;/.\\......;^........\n3|..../\\v..;..../*/..;.....//..;*.**../..;.........;.........;.........;.........;.........\n3|.........;.......\\<;.\\**..\\..;\\/....\\/.;.........;*........;.........;*........;.........\n3|.........;.........;.........;.........;....../\\.;.......//;.......//;**...**\\.;......^..\n4|........v;......\\*/;......*..;....../\\.;......\\**;......//.;.........;.........;.........\n4|.........;.........;...\\./...;.....*...;.....*...;../....*.;../\\.\\*\\.;.........;.......^.\n2|.........;....*....;....*....;.........;.........;.....././;....\\*\\.*;.......//;.......\\<\n4|\\.\\......;*.*......;*.\\./....;/\\.......;>\\.......;.........;.........;....*....;.........\n3|>\\.......;.........;*//......;*//......;**.......;.........;\\\\.......;.........;.........\n3|.........;.........;.........;.........;.........;\\*/......;\\\\\\\\.....;.*.*.....;>\\.*.....\n4|.....*...;.....*...;.......\\<;.....\\**/;......\\/.;......\\.\\;.........;.........;.........\n3|>*\\......;..*......;../\\.....;*........;.\\*\\.....;\\/.......;.........;.........;.........\n5|.........;.........;>/..\\\\...;./.*\\*...;...../\\..;.........;......*..;.........;......*..\n2|.........;.........;.........;.........;.........;.........;.........;\\//.***\\.;^\\/....\\*\n4|.........;.........;..*......;.........;..*../..<;.....*...;....\\/...;..*\\\\....;..//.....\n6|.........;.\\**/..\\/;>\\..\\.*.\\;.......*.;.........;.........;.........;.........;.........\n3|.........;.........;.........;.........;.........;../..*/..;.....\\/..;.....\\./.;..^*.**/.\n5|.....v...;...\\./...;...*.....;.........;...*\\./..;...\\\\*\\..;.........;.........;.........\n3|.........;.........;.........;.../*\\...;.........;.....*...;./././/..;.*..../*.;.^.......\n4|.........;.........;.........;..\\./....;.\\**/....;.**......;.\\/......;>/.......;.........\n6|.......\\<;......**.;.........;.......*.;.....\\./.;.........;....\\.\\..;....*....;..../\\...\n4|.v./*/...;./\\......;../*.\\...;**./.....;.........;.........;.........;.........;.........\n1|..v.../\\.;..\\*.**/.;......\\/.;.......\\*;.........;.........;.........;.........;.........\n2|.........;..*..*\\..;.........;.........;..../*\\..;../\\.....;...//....;..*......;..^......\n4|.....v...;.........;.\\..\\./..;./*.**\\..;....*....;..../\\...;.........;.........;.........\n2|.........;.........;.........;.........;.........;.........;\\/.\\\\....;\\**/*....;*/..^....\n5|v...*....;*........;.........;\\..\\*....;..././...;....*....;.....*...;.../.\\...;.../\\....\n5|.........;.........;.....\\/..;......\\*/;.....*...;.....*/./;.....**..;.....\\\\..;.....^...\n2|.........;\\.*.*...<;.*\\......;\\.\\......;/\\.......;//.......;.........;.........;.........\n2|.........;.........;.........;/./......;*.*......;*........;\\.*./....;..//\\.\\..;......^..\n2|...v.....;.....././;...*.....;../\\.....;..\\*/....;....\\***\\;.........;.........;.........\n4|.........;.........;.........;.........;...\\/....;...**....;..\\/\\.\\..;/*\\...*..;^.....*..\n3|.........;....\\.*.<;.........;...//....;...*.....;\\**/.....;\\..\\.....;..*\\.....;.........\n4|.........;*.**\\....;.........;...\\./...;>*\\*\\\\...;..\\\\.....;.........;.........;.........\n1|.........;.........;.........;.........;...\\\\....;...\\..\\..;....*.*..;.\\..*....;.\\.*/.\\*<\n6|.........;.........;.........;.........;....\\/...;***...\\..;....*/\\..;..../*\\..;....../.<\n4|.........;.........;...\\/....;..*/\\***\\;.........;......./\\;.......*.;......./<;.........\n3|.........;.........;.../.*/..;...\\..***;......*..;.....././;.........;.......//;.......\\<\n4|../*....<;..*......;.........;../*..\\..;.....\\\\..;.........;.........;..../*.*.;....//...\n4|.../*./..;......\\/.;.**/.....;......\\\\.;......*..;......\\*<;.........;.........;.........\n2|.........;.........;.....*...;.....*...;.....*...;.........;.........;///*\\*...;^\\/.//...\n6|...\\.*/..;.........;...*.....;...*..*..;.........;....\\.\\..;...\\\\.*..;.....\\\\..;.....^...\n2|.//......;>/*/\\....;..//*....;....*....;.*.*/....;.........;.........;.........;.........\n3|.........;.........;.........;.....//..;..../\\*..;../.\\....;..*...*..;/./...*..;^.....*..\n2|.........;.........;.........;.........;.........;>*/......;..*../\\..;.../*/...;..//..\\**\n7|.........;.........;.........;.....\\/..;.../*\\*..;...*.....;..\\\\.....;.\\\\...*..;.^....*..\n4|..*......;/*\\......;.........;*........;\\/.......;/\\.......;\\*/......;..*......;..^......\n2|.........;.........;......\\\\.;....../\\.;..../*/..;....*....;..../*../;........*;........^\n5|.//......;>//*/....;\\..*\\....;*........;.........;*........;\\......*.;.........;.........\n2|..v......;.//......;/\\.......;\\\\.......;./*\\.....;...*.....;...*.....;...*.....;...*.....\n1|\\/.......;//.......;.*.......;\\/.......;*........;*........;\\\\.......;.*.......;.^.......\n4|.........;.........;....\\.*/.;...****/.;.........;...//....;..\\/.....;.........;>.\\......\n4|.........;.........;.........;//.......;././.....;*/./.....;**.......;\\.*/.....;.*.^.....\n6|.........;.........;.........;.........;..\\./....;/*\\.*....;//..*....;/\\..*....;^...*....\n2|\\*.*\\v...;.../*/...;*..\\/....;/*/......;.........;.........;.........;.........;.........\n6|........v;.......\\/;.......*.;......\\\\.;......*..;......*\\/;......\\*\\;.........;.......*.";
+  const LEVELS = LEVEL_BLOB.split("\n").filter(Boolean).map(line=>{
+    const bar=line.indexOf("|");
+    return { par:+line.slice(0,bar), g:line.slice(bar+1).split(";") };
+  });
+
+
+  const DIRS = { ">":[1,0], "<":[-1,0], "^":[0,-1], "v":[0,1] };
+  let G=6, cell=0, pad=0;
+  let level = 0, moves=0;
+  let cells=[];      // {t:'.', mirror:'/'/'\\'}
+  let emitter=null;  // {x,y,dir:[dx,dy]}
+  let crystals=[];   // {x,y,lit}
+  let anim=0, beamPath=[], litSet=new Set();
+  let done = loadDone();
+
+  function loadDone(){ try{return new Set(JSON.parse(localStorage.getItem(LS_DONE)||"[]"))}catch(e){return new Set()} }
+  function saveDone(){ localStorage.setItem(LS_DONE, JSON.stringify([...done])); }
+  function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1600);}
+
+  function loadLevel(n){
+    level = (n+LEVELS.length)%LEVELS.length;
+    const L = LEVELS[level];
+    G = L.g.length;
+    cells=[]; crystals=[]; emitter=null; moves=0;
+    for(let y=0;y<G;y++){
+      const row=L.g[y];
+      for(let x=0;x<G;x++){
+        const ch=row[x]||".";
+        const c={t:".", mirror:null};
+        if(ch==="#") c.t="#";
+        else if(ch==="*"){ c.t="*"; crystals.push({x,y}); }
+        else if(ch==="/"||ch==="\\"){ c.t="m"; c.mirror=ch; }
+        else if(DIRS[ch]){ c.t="e"; emitter={x,y,dir:DIRS[ch].slice()}; }
+        cells.push(c);
+      }
+    }
+    $("#lvlNum").textContent = level+1;
+    $("#par").textContent = L.par;
+    resize(); trace(); updateHud();
+  }
+
+  function at(x,y){ if(x<0||y<0||x>=G||y>=G) return null; return cells[y*G+x]; }
+
+  // Trace beam, collect lit crystals + path points (grid coords, with sub-steps for mirrors)
+  function trace(){
+    litSet = new Set(); beamPath=[];
+    if(!emitter) return;
+    let x=emitter.x, y=emitter.y, [dx,dy]=emitter.dir;
+    beamPath.push([x+0.5,y+0.5]);
+    let guard=0;
+    while(guard++<400){
+      x+=dx; y+=dy;
+      if(x<0||y<0||x>=G||y>=G){ beamPath.push([x+0.5,y+0.5]); break; }
+      const c=at(x,y);
+      if(c.t==="#"){ beamPath.push([x+0.5,y+0.5]); break; }
+      if(c.t==="*"){ litSet.add(x+","+y); beamPath.push([x+0.5,y+0.5]); continue; }
+      if(c.t==="m"){
+        beamPath.push([x+0.5,y+0.5]);
+        if(c.mirror==="/"){ const t=dx; dx=-dy; dy=-t; }   // '/'
+        else { const t=dx; dx=dy; dy=t; }                  // '\'
+        continue;
+      }
+      beamPath.push([x+0.5,y+0.5]);
+    }
+  }
+
+  function allLit(){ return crystals.every(cr=>litSet.has(cr.x+","+cr.y)); }
+
+  function updateHud(){
+    $("#litCount").textContent = crystals.filter(cr=>litSet.has(cr.x+","+cr.y)).length+"/"+crystals.length;
+    $("#moves").textContent = moves;
+  }
+
+  // ---- rendering ----
+  function resize(){
+    const r = cv.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    cv.width = r.width*dpr; cv.height=r.height*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    pad = r.width*0.06;
+    cell = (r.width - pad*2)/G;
+  }
+  window.addEventListener("resize", ()=>{ resize(); });
+
+  function cx(x){ return pad + x*cell; }
+  function draw(t){
+    anim = t||0;
+    const r = cv.getBoundingClientRect();
+    ctx.clearRect(0,0,r.width,r.height);
+    // grid dots
+    ctx.fillStyle="rgba(120,140,200,.10)";
+    for(let y=0;y<G;y++)for(let x=0;x<G;x++){ ctx.beginPath(); ctx.arc(cx(x)+cell/2,cx(y)+cell/2,2,0,7); ctx.fill(); }
+
+    // beam glow (animated dashes)
+    if(beamPath.length>1){
+      const pulse = 0.6+0.4*Math.sin(anim/300);
+      for(let pass=0; pass<2; pass++){
+        ctx.beginPath();
+        ctx.moveTo(cx(beamPath[0][0]-0.5)+cell/2, cx(beamPath[0][1]-0.5)+cell/2);
+        for(let i=1;i<beamPath.length;i++)
+          ctx.lineTo(cx(beamPath[i][0]-0.5)+cell/2, cx(beamPath[i][1]-0.5)+cell/2);
+        ctx.strokeStyle = pass===0? "rgba(89,240,255,"+(0.18*pulse)+")" : "rgba(180,250,255,.95)";
+        ctx.lineWidth = pass===0? cell*0.5 : cell*0.12;
+        ctx.lineCap="round"; ctx.lineJoin="round";
+        ctx.shadowColor="#59f0ff"; ctx.shadowBlur=pass===0?24:14;
+        ctx.stroke();
+      }
+      ctx.shadowBlur=0;
+    }
+
+    // cells
+    for(let y=0;y<G;y++)for(let x=0;x<G;x++){
+      const c=at(x,y); const X=cx(x), Y=cx(y);
+      if(c.t==="#"){
+        rrect(X+cell*0.12,Y+cell*0.12,cell*0.76,cell*0.76,cell*0.16);
+        ctx.fillStyle="#151b32"; ctx.fill();
+        ctx.strokeStyle="#232c4d"; ctx.lineWidth=2; ctx.stroke();
+      }
+      else if(c.t==="e"){
+        const lit=true;
+        ctx.save(); ctx.translate(X+cell/2,Y+cell/2);
+        ctx.rotate(Math.atan2(emitter.dir[1],emitter.dir[0]));
+        rrect(-cell*0.34,-cell*0.28,cell*0.68,cell*0.56,cell*0.14);
+        const g=ctx.createLinearGradient(-cell*0.3,0,cell*0.3,0);
+        g.addColorStop(0,"#0a2a33"); g.addColorStop(1,"#0e4b57");
+        ctx.fillStyle=g; ctx.fill();
+        ctx.strokeStyle="#59f0ff"; ctx.lineWidth=2.5; ctx.stroke();
+        // aperture
+        ctx.beginPath(); ctx.arc(cell*0.2,0,cell*0.1,0,7);
+        ctx.fillStyle="#bff6ff"; ctx.shadowColor="#59f0ff"; ctx.shadowBlur=16; ctx.fill(); ctx.shadowBlur=0;
+        ctx.restore();
+      }
+      else if(c.t==="m"){
+        ctx.save(); ctx.translate(X+cell/2,Y+cell/2);
+        const target = c.mirror==="/" ? -Math.PI/4 : Math.PI/4;
+        c._a = c._a==null? target : c._a + (target-c._a)*0.25; // smooth spin
+        ctx.rotate(c._a);
+        // glass slab
+        const gg=ctx.createLinearGradient(0,-cell*0.34,0,cell*0.34);
+        gg.addColorStop(0,"rgba(207,230,255,.95)"); gg.addColorStop(1,"rgba(150,190,240,.75)");
+        rrect(-cell*0.07,-cell*0.34,cell*0.14,cell*0.68,cell*0.06);
+        ctx.fillStyle=gg; ctx.shadowColor="rgba(120,200,255,.6)"; ctx.shadowBlur=10; ctx.fill(); ctx.shadowBlur=0;
+        ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.restore();
+      }
+      else if(c.t==="*"){
+        const lit=litSet.has(x+","+y);
+        const s = cell*0.24 * (lit? (1+0.06*Math.sin(anim/200)) : 1);
+        ctx.save(); ctx.translate(X+cell/2,Y+cell/2); ctx.rotate(Math.PI/4);
+        ctx.beginPath(); ctx.rect(-s,-s,s*2,s*2);
+        ctx.fillStyle = lit? "#8affc9" : "#33203a";
+        ctx.strokeStyle = lit? "#d6ffe9" : "#ff4d8d";
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = lit? "#8affc9":"#ff4d8d"; ctx.shadowBlur = lit? 22:8;
+        ctx.fill(); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.restore();
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  function rrect(x,y,w,h,r){ ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+  // ---- interaction ----
+  function cellFromEvent(e){
+    const r=cv.getBoundingClientRect();
+    const px = (e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const py = (e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    const x=Math.floor((px-pad)/cell), y=Math.floor((py-pad)/cell);
+    return {x,y};
+  }
+  function rotate(x,y,dir){
+    const c=at(x,y); if(!c||c.t!=="m") return false;
+    c.mirror = c.mirror==="/" ? "\\" : "/";
+    moves++; trace(); updateHud();
+    if(allLit()) win();
+    return true;
+  }
+  let holdTimer=null, held=false;
+  function down(e){
+    const {x,y}=cellFromEvent(e); const c=at(x,y);
+    if(!c||c.t!=="m") return;
+    held=false;
+    holdTimer=setTimeout(()=>{ held=true; rotate(x,y); rotate(x,y); rotate(x,y); },380); // long-press = spin other way (3 flips = net reverse feel)
+    cv._pending={x,y};
+  }
+  function up(e){
+    clearTimeout(holdTimer);
+    const p=cv._pending; cv._pending=null;
+    if(!p) return;
+    if(!held) rotate(p.x,p.y);
+    held=false;
+  }
+  cv.addEventListener("mousedown",down); window.addEventListener("mouseup",up);
+  cv.addEventListener("touchstart",e=>{e.preventDefault();down(e);},{passive:false});
+  cv.addEventListener("touchend",e=>{e.preventDefault();up(e);},{passive:false});
+
+  function win(){
+    if(!done.has(level)){ done.add(level); saveDone(); }
+    const overPar = moves>LEVELS[level].par;
+    $("#winTitle").textContent = overPar? "Solved!" : "Perfect! ✦";
+    $("#winMsg").textContent = overPar
+      ? `Cleared in ${moves} moves. Par is ${LEVELS[level].par} — can you beat it?`
+      : `Cleared in ${moves} moves — right on par.`;
+    setTimeout(()=>$("#winOverlay").classList.add("show"), 450);
+  }
+
+  // ---- hint: flash a mirror that is on the solution's shortest useful path ----
+  function hint(){
+    // simple heuristic: brute-force up to current mirrors' orientations to find a solving config,
+    // then reveal the first mirror that differs from current.
+    const mirrors=[];
+    for(let y=0;y<G;y++)for(let x=0;x<G;x++){ if(at(x,y).t==="m") mirrors.push({x,y}); }
+    if(mirrors.length>10){ toast("Too many mirrors to hint"); return; }
+    const orig = mirrors.map(m=>at(m.x,m.y).mirror);
+    const N=mirrors.length; let found=null;
+    for(let mask=0; mask<(1<<N); mask++){
+      mirrors.forEach((m,i)=>{ at(m.x,m.y).mirror = (mask>>i&1)? "\\":"/"; });
+      trace();
+      if(allLit()){ found=mask; break; }
+    }
+    // restore
+    mirrors.forEach((m,i)=>at(m.x,m.y).mirror=orig[i]); trace(); updateHud();
+    if(found==null){ toast("Hmm, try Reset"); return; }
+    for(let i=0;i<N;i++){
+      const want=(found>>i&1)?"\\":"/";
+      if(orig[i]!==want){ flash(mirrors[i]); return; }
+    }
+    toast("You're one rotation from solving it!");
+  }
+  function flash(m){
+    const c=at(m.x,m.y); const old=c.t; let n=0;
+    const iv=setInterval(()=>{ c._hl=!c._hl;
+      // draw a highlight ring
+      const X=cx(m.x),Y=cx(m.y);
+      ctx.strokeStyle=c._hl?"#ffd24d":"transparent"; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(X+cell/2,Y+cell/2,cell*0.42,0,7); ctx.stroke();
+      if(++n>6) clearInterval(iv);
+    },160);
+    toast("Rotate this mirror");
+  }
+
+  // ---- levels grid ----
+  function buildLvlGrid(){
+    const grid=$("#lvlGrid"); grid.innerHTML="";
+    $("#totalLvls").textContent=LEVELS.length;
+    LEVELS.forEach((L,i)=>{
+      const b=document.createElement("button");
+      b.textContent=i+1;
+      if(done.has(i)) b.classList.add("done");
+      if(i===level) b.classList.add("cur");
+      const unlocked = i===0 || done.has(i-1) || done.has(i);
+      if(!unlocked) b.classList.add("locked");
+      b.onclick=()=>{ if(!unlocked){toast("Solve earlier levels first");return;}
+        loadLevel(i); $("#levelsOverlay").classList.remove("show"); };
+      grid.appendChild(b);
+    });
+  }
+
+  // ---- wire ----
+  $("#playBtn").onclick=()=>{ $("#introOverlay").classList.remove("show"); localStorage.setItem("prism.seen","1"); };
+  $("#helpBtn").onclick=()=>{ $("#introOverlay").classList.add("show"); };
+  $("#resetBtn").onclick=()=>loadLevel(level);
+  $("#hintBtn").onclick=hint;
+  $("#nextBtn").onclick=()=>{ $("#winOverlay").classList.remove("show"); loadLevel(level+1); };
+  $("#replayBtn").onclick=()=>{ $("#winOverlay").classList.remove("show"); loadLevel(level); };
+  $("#levelsBtn").onclick=()=>{ buildLvlGrid(); $("#levelsOverlay").classList.add("show"); };
+  $("#levelsClose").onclick=()=>$("#levelsOverlay").classList.remove("show");
+
+  // ---- boot ----
+  // resume at first unsolved level
+  let start=0; while(start<LEVELS.length-1 && done.has(start)) start++;
+  loadLevel(start);
+  if(!localStorage.getItem("prism.seen")) $("#introOverlay").classList.add("show");
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
