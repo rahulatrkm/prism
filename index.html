@@ -356,6 +356,7 @@
         ctx.restore();
       }
     }
+    stepMotes(); drawMotes();
     requestAnimationFrame(draw);
   }
   function rrect(x,y,w,h,r){ ctx.beginPath();
@@ -370,10 +371,80 @@
     const x=Math.floor((px-pad)/cell), y=Math.floor((py-pad)/cell);
     return {x,y};
   }
+  /* ---- sound and motes ----------------------------------------------
+     A puzzle this quiet needs feedback you can feel. Each crystal lights a
+     note further up a pentatonic scale, so solving a board plays a phrase
+     rather than a series of identical pings. */
+  let AC=null, muted=false;
+  const PENT=[0,2,4,7,9,12,14,16,19,21];
+  const actx=()=>(AC=AC||new (window.AudioContext||window.webkitAudioContext)());
+  function tone(semis,{gain=.09,dur=.5,type="sine"}={}){
+    if(muted) return;
+    try{
+      const a=actx(), t=a.currentTime;
+      const o=a.createOscillator(), g=a.createGain(), f=a.createBiquadFilter();
+      f.type="lowpass"; f.frequency.value=3200;
+      o.type=type; o.frequency.value=329.63*Math.pow(2,semis/12);
+      o.connect(g); g.connect(f); f.connect(a.destination);
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(gain,t+.012);
+      g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+      o.start(t); o.stop(t+dur);
+    }catch(e){}
+  }
+  function click(){
+    if(muted) return;
+    try{
+      const a=actx(), t=a.currentTime;
+      const o=a.createOscillator(), g=a.createGain();
+      o.type="triangle"; o.frequency.setValueAtTime(520,t);
+      o.frequency.exponentialRampToValueAtTime(240,t+.09);
+      g.gain.setValueAtTime(.05,t); g.gain.exponentialRampToValueAtTime(.0001,t+.1);
+      o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+.1);
+    }catch(e){}
+  }
+
+  let motes=[];
+  function burst(gx,gy,n,hue){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2, sp=.4+Math.random()*1.8;
+      motes.push({x:gx,y:gy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+        life:1,decay:.012+Math.random()*.02,r:1+Math.random()*2.4,hue});
+    }
+  }
+  function stepMotes(){
+    for(let i=motes.length-1;i>=0;i--){
+      const m=motes[i];
+      m.x+=m.vx; m.y+=m.vy; m.vx*=.965; m.vy*=.965;
+      m.life-=m.decay;
+      if(m.life<=0) motes.splice(i,1);
+    }
+  }
+  function drawMotes(){
+    for(const m of motes){
+      ctx.globalAlpha=Math.max(0,m.life)*.85;
+      ctx.fillStyle=m.hue;
+      ctx.beginPath(); ctx.arc(m.x,m.y,m.r*(0.4+m.life),0,7); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+
   function rotate(x,y,dir){
     const c=at(x,y); if(!c||c.t!=="m") return false;
+    const before=new Set(litSet);
     c.mirror = c.mirror==="/" ? "\\" : "/";
     moves++; trace(); updateHud();
+    click();
+    // a crystal that just came on gets its own note and a spark
+    let newly=0;
+    for(const cr of crystals){
+      const key=cr.x+","+cr.y;
+      if(litSet.has(key) && !before.has(key)){
+        tone(PENT[Math.min(newly + (crystals.filter(q=>litSet.has(q.x+","+q.y)).length-1), PENT.length-1)],{gain:.1,dur:.7});
+        burst(cx(cr.x)+cell/2, cx(cr.y)+cell/2, 14, "#8affc9");
+        newly++;
+      }
+    }
     if(allLit()) win();
     return true;
   }
@@ -398,6 +469,8 @@
 
   function win(){
     if(!done.has(level)){ done.add(level); saveDone(); }
+    for(const cr of crystals) burst(cx(cr.x)+cell/2, cx(cr.y)+cell/2, 22, "#d6ffe9");
+    [0,4,7,12].forEach((s,i)=>setTimeout(()=>tone(s+12,{gain:.09,dur:.9}), i*110));
     const overPar = moves>LEVELS[level].par;
     $("#winTitle").textContent = overPar? "Solved!" : "Perfect! ✦";
     $("#winMsg").textContent = overPar
