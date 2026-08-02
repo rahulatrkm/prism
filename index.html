@@ -585,8 +585,9 @@ $("btnHint").addEventListener("click", () => {
   toast("Try the highlighted mirror");
 });
 $("btnReset").addEventListener("click", () => { loadLevel(level); toast("Reset"); });
+const dropFocus = () => { if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); };
 $("btnPlay").addEventListener("click", () => {
-  actx();
+  actx(); dropFocus();
   const next = LEVELS.findIndex((_, i) => !done.has(i));
   loadLevel(next < 0 ? 0 : next);
   hide("vStart");
