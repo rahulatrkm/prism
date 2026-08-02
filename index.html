@@ -234,6 +234,16 @@ const DIRS = { ">": [1, 0], "<": [-1, 0], "^": [0, -1], "v": [0, 1] };
 const TAU = Math.PI * 2;
 const LS_DONE = "prism_done_v2";
 
+/* Renaming the key wiped every existing player's completed levels, so read the
+   old one once and carry it forward. */
+(function migrate(){
+  try{
+    if(localStorage.getItem(LS_DONE)) return;
+    const old = localStorage.getItem("prism.done");
+    if(old) localStorage.setItem(LS_DONE, old);
+  }catch(e){}
+})();
+
 const cv = $("c");
 const ctx = cv.getContext("2d");
 
